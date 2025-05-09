@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "vite build && npx gh-pages -d dist",
-    "start": "vite --host"
+    "start": "vite --host",
+    "deploy:netlify": "vite build && npx netlify deploy --prod"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -78,6 +79,7 @@
     "gh-pages": "^6.3.0",
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
+    "netlify-cli": "^21.2.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
