@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,9 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
+import PushToTalk from "./components/PushToTalk";
 import { useEffect, useState } from "react";
 import { FirebaseProvider } from "./contexts/FirebaseContext";
+import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,18 @@ const App = () => {
               <Route 
                 path="/dashboard" 
                 element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/messages" 
+                element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/push-to-talk" 
+                element={isAuthenticated ? 
+                  <MainLayout>
+                    <PushToTalk />
+                  </MainLayout> 
+                  : <Navigate to="/login" />} 
               />
               <Route 
                 path="/" 

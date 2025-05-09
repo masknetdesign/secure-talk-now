@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,27 +5,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/contexts/FirebaseContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { signIn } = useFirebase();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null);
 
     try {
+      console.log("Iniciando login com:", email);
       await signIn(email, password);
+      console.log("Login bem-sucedido, redirecionando para dashboard");
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      // Error is already handled in the firebase context with toast
+      setLoginError(error.message || "Erro ao fazer login. Verifique suas credenciais.");
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Para facilitar o login durante testes
+  const handleTestLogin = async () => {
+    setEmail("test@example.com");
+    setPassword("password123");
   };
 
   return (
@@ -46,6 +56,12 @@ const Login = () => {
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
+              {loginError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{loginError}</AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail corporativo</Label>
                 <Input
@@ -60,9 +76,13 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Senha</Label>
-                  <a href="#" className="text-xs text-comtalk-500 hover:underline">
-                    Esqueceu a senha?
-                  </a>
+                  <button 
+                    type="button" 
+                    className="text-xs text-comtalk-500 hover:underline"
+                    onClick={handleTestLogin}
+                  >
+                    Usar credenciais de teste
+                  </button>
                 </div>
                 <Input
                   id="password"

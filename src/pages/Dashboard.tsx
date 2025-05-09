@@ -1,12 +1,308 @@
-
 import MainLayout from "@/components/MainLayout";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar, MapPin, Radio, UserRound } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useFirebase } from "@/contexts/FirebaseContext";
+import { Link } from "react-router-dom";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from "recharts";
+import { 
+  MessageSquare, 
+  Users, 
+  Headphones, 
+  Mail, 
+  Calendar,
+  Activity,
+  Bell,
+  UserPlus
+} from "lucide-react";
+import { collection, query, orderBy, limit, getDocs, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { AddContactDialog } from "@/components/AddContactDialog";
+import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+
+// Types for our component data
+type RecentActivity = {
+  id: string;
+  type: 'message' | 'voice' | 'group' | 'notification';
+  title: string;
+  content: string;
+  timestamp: Date;
+  sender: string;
+  groupName?: string;
+};
+
+type MessageStats = {
+  sent: number;
+  received: number;
+  groups: number;
+  voice: number;
+};
+
+type ActivityData = {
+  name: string;
+  messages: number;
+  calls: number;
+};
+
+const initialMessageStats: MessageStats = {
+  sent: 0,
+  received: 0,
+  groups: 0,
+  voice: 0
+};
 
 const Dashboard = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [messageStats, setMessageStats] = useState<MessageStats>(initialMessageStats);
+  const [activityData, setActivityData] = useState<ActivityData[]>([]);
+  
+  const { currentUser } = useFirebase();
+  
+  // Sample activity data for demonstration when real data isn't available yet
+  const generateSampleActivityData = () => {
+    const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
+    return days.map(day => ({
+      name: day,
+      messages: Math.floor(Math.random() * 30) + 5,
+      calls: Math.floor(Math.random() * 10)
+    }));
+  };
+  
+  // Load all dashboard data
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        if (!currentUser) {
+          setError("Usuário não autenticado");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch message statistics
+        await fetchMessageStats();
+        
+        // Fetch recent activity (messages, calls, etc.)
+        await fetchRecentActivity();
+        
+        // Generate sample activity data
+        setActivityData(generateSampleActivityData());
+        
+        setError(null);
+      } catch (err) {
+        console.error("Erro ao carregar dashboard:", err);
+        setError("Erro ao carregar dados do dashboard");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadDashboardData();
+  }, [currentUser]);
+  
+  // Fetch recent activity across all sources
+  const fetchRecentActivity = async () => {
+    if (!currentUser) return;
+    
+    try {
+      // Get recent text messages
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where("participants", "array-contains", currentUser.uid),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      
+      // Get recent voice messages
+      const voiceQuery = query(
+        collection(db, 'messages'),
+        where("participants", "array-contains", currentUser.uid),
+        where("type", "==", "audio"),
+        orderBy('timestamp', 'desc'),
+        limit(5)
+      );
+      
+      // Execute queries
+      const [messagesSnapshot, voiceSnapshot] = await Promise.all([
+        getDocs(messagesQuery),
+        getDocs(voiceQuery)
+      ]);
+      
+      // Format messages
+      const textMessages = messagesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: 'message' as const,
+          title: data.sender,
+          content: data.content.substring(0, 30) + (data.content.length > 30 ? '...' : ''),
+          timestamp: data.timestamp?.toDate() || new Date(),
+          sender: data.sender,
+          groupName: data.groupName
+        };
+      });
+      
+      // Format voice messages
+      const voiceMessages = voiceSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: 'voice' as const,
+          title: data.sender,
+          content: `Mensagem de áudio (${data.duration || '0:00'})`,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          sender: data.sender,
+          groupName: data.groupName
+        };
+      });
+      
+      // Combine all activities and sort by timestamp
+      const allActivity = [...textMessages, ...voiceMessages]
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10);
+      
+      setRecentActivity(allActivity);
+    } catch (error) {
+      console.error("Error fetching activity:", error);
+    }
+  };
+  
+  // Fetch message statistics
+  const fetchMessageStats = async () => {
+    if (!currentUser) return;
+    
+    try {
+      // Get sent messages count
+      const sentQuery = query(
+        collection(db, 'messages'),
+        where("senderId", "==", currentUser.uid)
+      );
+      
+      // Get received messages count
+      const receivedQuery = query(
+        collection(db, 'messages'),
+        where("participants", "array-contains", currentUser.uid),
+        where("senderId", "!=", currentUser.uid)
+      );
+      
+      // Get voice messages count
+      const voiceQuery = query(
+        collection(db, 'messages'),
+        where("participants", "array-contains", currentUser.uid),
+        where("type", "==", "audio")
+      );
+      
+      // Get groups count
+      const groupsQuery = query(
+        collection(db, 'groups'),
+        where("members", "array-contains", currentUser.uid)
+      );
+      
+      // Execute queries
+      const [sentSnap, receivedSnap, voiceSnap, groupsSnap] = await Promise.all([
+        getDocs(sentQuery),
+        getDocs(receivedQuery),
+        getDocs(voiceQuery),
+        getDocs(groupsQuery)
+      ]);
+      
+      // Update message stats
+      setMessageStats({
+        sent: sentSnap.size,
+        received: receivedSnap.size,
+        groups: groupsSnap.size,
+        voice: voiceSnap.size
+      });
+    } catch (error) {
+      console.error("Error fetching message stats:", error);
+    }
+  };
+  
+  // Render a single activity item
+  const renderActivityItem = (item: RecentActivity) => {
+    return (
+      <div key={item.id} className="flex items-start space-x-4 py-3">
+        <div className="mt-1">
+          {item.type === 'message' && <MessageSquare className="h-5 w-5 text-blue-500" />}
+          {item.type === 'voice' && <Headphones className="h-5 w-5 text-green-500" />}
+          {item.type === 'group' && <Users className="h-5 w-5 text-purple-500" />}
+          {item.type === 'notification' && <Bell className="h-5 w-5 text-amber-500" />}
+        </div>
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">{item.title}</p>
+            <span className="text-xs text-muted-foreground">
+              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {item.groupName && <span className="font-medium">[{item.groupName}] </span>}
+            {item.content}
+          </p>
+        </div>
+      </div>
+    );
+  };
+  
+  // Colors for charts
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  
+  // Component for the stats cards
+  const StatsCard = ({ title, value, icon, description }: { 
+    title: string, 
+    value: number | string, 
+    icon: React.ReactNode,
+    description?: string
+  }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+          {icon}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+  
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-full">
+          <p>Carregando...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-full">
+          <p className="text-red-500">{error}</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="mb-8">
@@ -14,237 +310,248 @@ const Dashboard = () => {
         <p className="text-muted-foreground">Bem-vindo ao ComTalk, sua plataforma de comunicação empresarial segura.</p>
       </div>
       
-      <Tabs defaultValue="recent">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <StatsCard 
+          title="Mensagens Enviadas" 
+          value={messageStats.sent}
+          icon={<Mail className="h-4 w-4" />}
+          description="Total no último mês"
+        />
+        <StatsCard 
+          title="Mensagens Recebidas" 
+          value={messageStats.received}
+          icon={<MessageSquare className="h-4 w-4" />}
+          description="Total no último mês"
+        />
+        <StatsCard 
+          title="Mensagens de Voz" 
+          value={messageStats.voice}
+          icon={<Headphones className="h-4 w-4" />}
+          description="Total no último mês"
+        />
+        <StatsCard 
+          title="Grupos Ativos" 
+          value={messageStats.groups}
+          icon={<Users className="h-4 w-4" />}
+          description="Grupos que você participa"
+        />
+      </div>
+      
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        {/* Activity Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Atividade Semanal</CardTitle>
+            <CardDescription>Mensagens e chamadas na última semana</CardDescription>
+          </CardHeader>
+          <CardContent className="px-2">
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activityData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="messages" name="Mensagens" fill="#0088FE" />
+                  <Bar dataKey="calls" name="Chamadas" fill="#00C49F" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Message Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição de Mensagens</CardTitle>
+            <CardDescription>Por tipo de comunicação</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Enviadas', value: messageStats.sent },
+                      { name: 'Recebidas', value: messageStats.received },
+                      { name: 'Áudio', value: messageStats.voice },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {[
+                      { name: 'Enviadas', value: messageStats.sent },
+                      { name: 'Recebidas', value: messageStats.received },
+                      { name: 'Áudio', value: messageStats.voice },
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Tabs */}
+      <Tabs defaultValue="overview" className="mt-6">
         <TabsList>
-          <TabsTrigger value="recent">Recentes</TabsTrigger>
-          <TabsTrigger value="announcements">Avisos</TabsTrigger>
-          <TabsTrigger value="channels">Canais</TabsTrigger>
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="activity">Atividade</TabsTrigger>
+          <TabsTrigger value="analytics">Análise</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="recent" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Quick Actions */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Atividade Recente</CardTitle>
-                <CardDescription>Suas últimas interações</CardDescription>
+              <CardHeader>
+                <CardTitle>Ações Rápidas</CardTitle>
+                <CardDescription>Acesso direto às funcionalidades</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-comtalk-500 text-white">JS</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">João Silva</p>
-                      <p className="text-sm text-muted-foreground">Enviou um áudio (0:08)</p>
-                      <p className="text-xs text-muted-foreground">Há 30 minutos</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Radio className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Equipe de TI</p>
-                      <p className="text-sm text-muted-foreground">3 novas mensagens</p>
-                      <p className="text-xs text-muted-foreground">Há 15 minutos</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Bell className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Aviso da Empresa</p>
-                      <p className="text-sm text-muted-foreground">Manutenção programada</p>
-                      <p className="text-xs text-muted-foreground">Há 1 hora</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Próximos Eventos</CardTitle>
-                <CardDescription>Calendário integrado</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Calendar className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Reunião de Equipe</p>
-                      <p className="text-sm text-muted-foreground">Hoje, 14:00 - 15:00</p>
-                      <p className="text-xs text-muted-foreground">Sala de Conferência A</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Calendar className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Treinamento</p>
-                      <p className="text-sm text-muted-foreground">Amanhã, 09:00 - 11:00</p>
-                      <p className="text-xs text-muted-foreground">Online</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Membros Online</CardTitle>
-                <CardDescription>10 usuários ativos agora</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  <Avatar className="h-10 w-10 border-2 border-green-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">JS</AvatarFallback>
-                  </Avatar>
-                  <Avatar className="h-10 w-10 border-2 border-green-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">MO</AvatarFallback>
-                  </Avatar>
-                  <Avatar className="h-10 w-10 border-2 border-red-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">CS</AvatarFallback>
-                  </Avatar>
-                  <Avatar className="h-10 w-10 border-2 border-green-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">AP</AvatarFallback>
-                  </Avatar>
-                  <Avatar className="h-10 w-10 border-2 border-amber-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">LP</AvatarFallback>
-                  </Avatar>
-                  <Avatar className="h-10 w-10 border-2 border-green-500">
-                    <AvatarFallback className="bg-comtalk-600 text-white">RT</AvatarFallback>
-                  </Avatar>
-                  <Button variant="outline" size="sm" className="h-10">
-                    +4
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" className="h-20 justify-start p-4" asChild>
+                    <Link to="/messages">
+                      <div className="flex flex-col items-center justify-center w-full space-y-2">
+                        <MessageSquare className="h-5 w-5" />
+                        <span className="text-xs">Mensagens</span>
+                      </div>
+                    </Link>
                   </Button>
+                  <Button variant="outline" className="h-20 justify-start p-4" asChild>
+                    <Link to="/push-to-talk">
+                      <div className="flex flex-col items-center justify-center w-full space-y-2">
+                        <Headphones className="h-5 w-5" />
+                        <span className="text-xs">Push-to-Talk</span>
+                      </div>
+                    </Link>
+                  </Button>
+                  <AddContactDialog>
+                    <Button variant="outline" className="h-20 justify-start p-4 w-full">
+                      <div className="flex flex-col items-center justify-center w-full space-y-2">
+                        <UserPlus className="h-5 w-5" />
+                        <span className="text-xs">Adicionar Contato</span>
+                      </div>
+                    </Button>
+                  </AddContactDialog>
+                  <CreateGroupDialog>
+                    <Button variant="outline" className="h-20 justify-start p-4 w-full">
+                      <div className="flex flex-col items-center justify-center w-full space-y-2">
+                        <Users className="h-5 w-5" />
+                        <span className="text-xs">Criar Grupo</span>
+                      </div>
+                    </Button>
+                  </CreateGroupDialog>
                 </div>
+              </CardContent>
+            </Card>
+            
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Atividade Recente</CardTitle>
+                <CardDescription>Últimas interações</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[280px]">
+                  <div className="space-y-2">
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map(renderActivityItem)
+                    ) : (
+                      <div className="flex items-center justify-center h-[200px]">
+                        <p className="text-muted-foreground">Nenhuma atividade recente encontrada</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </div>
-          
+        </TabsContent>
+        
+        <TabsContent value="activity" className="space-y-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Equipes em Campo</CardTitle>
-              <CardDescription>Localização de equipes externas</CardDescription>
+            <CardHeader>
+              <CardTitle>Detalhes da Atividade</CardTitle>
+              <CardDescription>Histórico completo de atividades</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="flex items-start gap-2 p-3 border rounded-lg">
-                    <MapPin className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Equipe Manutenção A</p>
-                      <p className="text-sm text-muted-foreground">Filial Norte</p>
-                      <div className="flex items-center mt-2 gap-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">CS</AvatarFallback>
-                        </Avatar>
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">LP</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-muted-foreground">+2</span>
-                      </div>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4">
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map(renderActivityItem)
+                  ) : (
+                    <div className="flex items-center justify-center h-[200px]">
+                      <p className="text-muted-foreground">Nenhuma atividade recente encontrada</p>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2 p-3 border rounded-lg">
-                    <MapPin className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Equipe Vendas</p>
-                      <p className="text-sm text-muted-foreground">Cliente ABC Ltda.</p>
-                      <div className="flex items-center mt-2 gap-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">MO</AvatarFallback>
-                        </Avatar>
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">AP</AvatarFallback>
-                        </Avatar>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2 p-3 border rounded-lg">
-                    <MapPin className="h-5 w-5 mt-1 text-comtalk-500" />
-                    <div>
-                      <p className="font-medium">Equipe Suporte</p>
-                      <p className="text-sm text-muted-foreground">Centro de Dados</p>
-                      <div className="flex items-center mt-2 gap-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">JS</AvatarFallback>
-                        </Avatar>
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-comtalk-500 text-white text-xs">RT</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-muted-foreground">+3</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="announcements" className="space-y-4 mt-6">
+        <TabsContent value="analytics" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Avisos da Empresa</CardTitle>
-              <CardDescription>Comunicados importantes</CardDescription>
+              <CardTitle>Estatísticas de Uso</CardTitle>
+              <CardDescription>Visão geral da sua atividade no ComTalk</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="border-l-4 border-comtalk-500 pl-4">
-                  <h3 className="font-semibold">Manutenção do Sistema</h3>
-                  <p className="text-sm mt-1">O sistema estará indisponível para manutenção programada no próximo domingo, das 23h00 às 05h00.</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-muted-foreground">Departamento de TI</span>
-                    <span className="text-xs text-muted-foreground">12/05/2023</span>
+              <div className="flex flex-col space-y-8">
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Resumo de Mensagens</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-3 w-3 rounded bg-blue-500"></div>
+                      <span className="text-sm">Enviadas: {messageStats.sent}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-3 w-3 rounded bg-green-500"></div>
+                      <span className="text-sm">Recebidas: {messageStats.received}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-3 w-3 rounded bg-amber-500"></div>
+                      <span className="text-sm">Áudio: {messageStats.voice}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-3 w-3 rounded bg-purple-500"></div>
+                      <span className="text-sm">Grupos: {messageStats.groups}</span>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="border-l-4 border-comtalk-500 pl-4">
-                  <h3 className="font-semibold">Nova Política de Segurança</h3>
-                  <p className="text-sm mt-1">A partir da próxima semana, todos os funcionários deverão utilizar autenticação de dois fatores para acessar os sistemas da empresa.</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-muted-foreground">Segurança da Informação</span>
-                    <span className="text-xs text-muted-foreground">10/05/2023</span>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Uso do Sistema</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Você está utilizando o ComTalk ativamente com {messageStats.sent + messageStats.received} mensagens trocadas.
+                    Seu uso de áudio representa {messageStats.voice > 0 
+                      ? Math.round((messageStats.voice / (messageStats.sent + messageStats.received + messageStats.voice)) * 100) 
+                      : 0}% das suas comunicações.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Dicas de Produtividade</h3>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                    <li>Experimente usar as mensagens de áudio para comunicações mais longas.</li>
+                    <li>Crie grupos específicos para projetos para manter as conversas organizadas.</li>
+                    <li>Utilize o calendário para agendar reuniões e chamadas importantes.</li>
+                  </ul>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="channels" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Canais Disponíveis</CardTitle>
-                <CardDescription>Canais de comunicação ativos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start">
-                    <UserRound className="mr-2 h-4 w-4" />
-                    <span>Suporte Técnico</span>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Radio className="mr-2 h-4 w-4" />
-                    <span>Operações</span>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Radio className="mr-2 h-4 w-4" />
-                    <span>Comercial</span>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Bell className="mr-2 h-4 w-4" />
-                    <span>Avisos Gerais</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </MainLayout>
