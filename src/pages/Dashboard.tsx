@@ -33,6 +33,7 @@ import { collection, query, orderBy, limit, getDocs, where } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { AddContactDialog } from "@/components/AddContactDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+import { toast } from "@/components/ui/use-toast";
 
 // Types for our component data
 type RecentActivity = {
@@ -187,49 +188,82 @@ const Dashboard = () => {
     if (!currentUser) return;
     
     try {
-      // Get sent messages count
+      // Get sent messages count - Esta query é simples e não deve precisar de índice composto
       const sentQuery = query(
         collection(db, 'messages'),
         where("senderId", "==", currentUser.uid)
       );
       
-      // Get received messages count
-      const receivedQuery = query(
-        collection(db, 'messages'),
-        where("participants", "array-contains", currentUser.uid),
-        where("senderId", "!=", currentUser.uid)
-      );
-      
-      // Get voice messages count
-      const voiceQuery = query(
-        collection(db, 'messages'),
-        where("participants", "array-contains", currentUser.uid),
-        where("type", "==", "audio")
-      );
-      
-      // Get groups count
+      // Get groups count - Esta query também é simples e não deve precisar de índice composto
       const groupsQuery = query(
         collection(db, 'groups'),
         where("members", "array-contains", currentUser.uid)
       );
       
-      // Execute queries
-      const [sentSnap, receivedSnap, voiceSnap, groupsSnap] = await Promise.all([
+      // Execute as consultas que não exigem índices compostos
+      const [sentSnap, groupsSnap] = await Promise.all([
         getDocs(sentQuery),
-        getDocs(receivedQuery),
-        getDocs(voiceQuery),
         getDocs(groupsQuery)
       ]);
       
-      // Update message stats
+      // Variáveis para contagem de mensagens recebidas e de áudio
+      let receivedCount = 0;
+      let voiceCount = 0;
+      
+      try {
+        // Tentativa de obter mensagens recebidas - Isso pode exigir um índice composto
+        const receivedQuery = query(
+          collection(db, 'messages'),
+          where("participants", "array-contains", currentUser.uid),
+          where("senderId", "!=", currentUser.uid)
+        );
+        const receivedSnap = await getDocs(receivedQuery);
+        receivedCount = receivedSnap.size;
+      } catch (receivedError: any) {
+        // Se falhar devido à falta de índice, registra erro mas continua
+        console.warn("Erro ao buscar mensagens recebidas:", receivedError);
+        console.warn("Você precisa criar um índice para esta consulta. Visite o link fornecido no erro.");
+      }
+      
+      try {
+        // Tentativa de obter mensagens de áudio - Isso pode exigir um índice composto
+        const voiceQuery = query(
+          collection(db, 'messages'),
+          where("participants", "array-contains", currentUser.uid),
+          where("type", "==", "audio")
+        );
+        const voiceSnap = await getDocs(voiceQuery);
+        voiceCount = voiceSnap.size;
+      } catch (voiceError: any) {
+        // Se falhar devido à falta de índice, registra erro mas continua
+        console.warn("Erro ao buscar mensagens de áudio:", voiceError);
+        console.warn("Você precisa criar um índice para esta consulta. Visite o link fornecido no erro.");
+      }
+      
+      // Update message stats - Usamos 0 para os valores que não conseguimos obter
       setMessageStats({
         sent: sentSnap.size,
-        received: receivedSnap.size,
+        received: receivedCount,
         groups: groupsSnap.size,
-        voice: voiceSnap.size
+        voice: voiceCount
       });
     } catch (error) {
       console.error("Error fetching message stats:", error);
+      
+      // Ainda assim, atualiza as estatísticas com valores padrão para evitar UI quebrada
+      setMessageStats({
+        sent: 0,
+        received: 0,
+        groups: 0,
+        voice: 0
+      });
+      
+      // Mostra uma mensagem ao usuário sobre como resolver
+      toast({
+        title: "Erro ao carregar estatísticas",
+        description: "É necessário criar índices no Firebase. Um administrador precisará acessar o console do Firebase para resolver este problema.",
+        variant: "destructive"
+      });
     }
   };
   
