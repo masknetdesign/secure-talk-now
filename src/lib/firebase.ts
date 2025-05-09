@@ -6,12 +6,12 @@ import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB75OzrPITU2aTn4ROrsTaoH2LPwHF4n9c",
+  authDomain: "deliveryfflow.firebaseapp.com",
+  projectId: "deliveryfflow",
+  storageBucket: "deliveryfflow.appspot.com",
+  messagingSenderId: "215704714460",
+  appId: "1:215704714460:web:6a00417ae408805dfac819"
 };
 
 // Initialize Firebase
