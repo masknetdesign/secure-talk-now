@@ -1,7 +1,6 @@
-
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
@@ -21,5 +20,23 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Configure authentication persistence
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error("Error setting auth persistence:", error);
+  });
+
+// Enable offline data persistence for Firestore
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firestore persistence não pode ser habilitada com múltiplas abas abertas');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Seu navegador não suporta persistência de dados offline');
+    } else {
+      console.error('Erro ao habilitar persistência do Firestore:', err);
+    }
+  });
 
 export default app;
