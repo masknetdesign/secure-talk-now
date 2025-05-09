@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import PushToTalk from "./components/PushToTalk";
+import AdminPage from "./pages/AdminPage";
 import { useEffect, useState } from "react";
 import { FirebaseProvider } from "./contexts/FirebaseContext";
 import MainLayout from "./components/MainLayout";
@@ -56,6 +57,14 @@ const App = () => {
                 element={isAuthenticated ? 
                   <MainLayout>
                     <PushToTalk />
+                  </MainLayout> 
+                  : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/admin" 
+                element={isAuthenticated ? 
+                  <MainLayout>
+                    <AdminPage />
                   </MainLayout> 
                   : <Navigate to="/login" />} 
               />

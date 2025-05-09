@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
@@ -76,6 +76,17 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           <span className="text-sm mr-2 text-muted-foreground">
             Olá, {user.name}
           </span>
+          {user.role === "admin" && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1 mr-2" 
+              onClick={() => navigate("/admin")}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Admin
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Sair">
             <LogOut className="h-5 w-5" />
           </Button>

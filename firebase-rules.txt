@@ -1,0 +1,56 @@
+// Regras de segurança do Firestore para copiar e colar no console do Firebase
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Função auxiliar para verificar se o usuário é admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Permitir login e registro sem autenticação prévia
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null || request.resource.data.email != null;
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Permitir leitura e escrita para usuários autenticados
+    match /groups/{groupId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+    }
+    
+    match /chats/{chatId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null;
+        allow delete: if request.auth != null && 
+                   (resource.data.senderId == request.auth.uid || isAdmin());
+      }
+    }
+    
+    match /contacts/{contactId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Área restrita somente a administradores
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Regra geral para outros documentos
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+} 
