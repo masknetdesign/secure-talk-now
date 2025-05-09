@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -124,7 +123,13 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
               <DrawerDescription>Adicione um novo contato à sua lista</DrawerDescription>
             </DrawerHeader>
             <Form {...contactForm}>
-              <form onSubmit={contactForm.handleSubmit(onContactSubmit)} className="space-y-4 px-4">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  contactForm.handleSubmit(onContactSubmit)(e);
+                }} 
+                className="space-y-4 px-4"
+              >
                 <FormField
                   control={contactForm.control}
                   name="name"
@@ -185,7 +190,13 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
             <DialogDescription>Adicione um novo contato à sua lista</DialogDescription>
           </DialogHeader>
           <Form {...contactForm}>
-            <form onSubmit={contactForm.handleSubmit(onContactSubmit)} className="space-y-4">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                contactForm.handleSubmit(onContactSubmit)(e);
+              }} 
+              className="space-y-4"
+            >
               <FormField
                 control={contactForm.control}
                 name="name"
@@ -246,7 +257,13 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
               <DrawerDescription>Crie um novo grupo de comunicação</DrawerDescription>
             </DrawerHeader>
             <Form {...groupForm}>
-              <form onSubmit={groupForm.handleSubmit(onGroupSubmit)} className="space-y-4 px-4">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  groupForm.handleSubmit(onGroupSubmit)(e);
+                }} 
+                className="space-y-4 px-4"
+              >
                 <FormField
                   control={groupForm.control}
                   name="name"
@@ -294,7 +311,13 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
             <DialogDescription>Crie um novo grupo de comunicação</DialogDescription>
           </DialogHeader>
           <Form {...groupForm}>
-            <form onSubmit={groupForm.handleSubmit(onGroupSubmit)} className="space-y-4">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                groupForm.handleSubmit(onGroupSubmit)(e);
+              }} 
+              className="space-y-4"
+            >
               <FormField
                 control={groupForm.control}
                 name="name"
