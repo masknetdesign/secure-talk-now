@@ -4,7 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Users, Bell, Radio, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { User, Users, Bell, Radio, FileText, UserPlus, UserRound, CirclePlus, Plus } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { useMediaQuery } from "@/hooks/use-mobile";
 
 interface UserProps {
   name: string;
@@ -15,6 +24,40 @@ interface UserProps {
 
 const SidebarNav = ({ user }: { user: UserProps }) => {
   const [userStatus, setUserStatus] = useState("available");
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  
+  // Contact form schema
+  const contactFormSchema = z.object({
+    name: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
+    email: z.string().email({ message: "Email inválido" }),
+    department: z.string().optional(),
+  });
+
+  // Group form schema
+  const groupFormSchema = z.object({
+    name: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
+    description: z.string().optional(),
+  });
+
+  const contactForm = useForm<z.infer<typeof contactFormSchema>>({
+    resolver: zodResolver(contactFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      department: "",
+    },
+  });
+
+  const groupForm = useForm<z.infer<typeof groupFormSchema>>({
+    resolver: zodResolver(groupFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
   
   // Mock data - in a real app this would come from an API
   const contacts = [
@@ -46,6 +89,246 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
       case "field": return "Em campo";
       default: return "Offline";
     }
+  };
+
+  const onContactSubmit = (values: z.infer<typeof contactFormSchema>) => {
+    // In a real app, here we would make an API call to add the contact
+    console.log("Adding contact:", values);
+    toast({
+      title: "Contato adicionado",
+      description: `${values.name} foi adicionado aos seus contatos.`
+    });
+    contactForm.reset();
+    setContactDialogOpen(false);
+  };
+
+  const onGroupSubmit = (values: z.infer<typeof groupFormSchema>) => {
+    // In a real app, here we would make an API call to create the group
+    console.log("Creating group:", values);
+    toast({
+      title: "Grupo criado",
+      description: `O grupo ${values.name} foi criado com sucesso.`
+    });
+    groupForm.reset();
+    setGroupDialogOpen(false);
+  };
+
+  // Component for dialog or drawer based on screen size
+  const ContactDialog = () => {
+    if (isMobile) {
+      return (
+        <Drawer open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Adicionar Contato</DrawerTitle>
+              <DrawerDescription>Adicione um novo contato à sua lista</DrawerDescription>
+            </DrawerHeader>
+            <Form {...contactForm}>
+              <form onSubmit={contactForm.handleSubmit(onContactSubmit)} className="space-y-4 px-4">
+                <FormField
+                  control={contactForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nome do contato" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={contactForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="email@empresa.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={contactForm.control}
+                  name="department"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Departamento</FormLabel>
+                      <FormControl>
+                        <Input placeholder="TI, RH, etc." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DrawerFooter>
+                  <Button type="submit">Adicionar Contato</Button>
+                  <DrawerClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </form>
+            </Form>
+          </DrawerContent>
+        </Drawer>
+      );
+    }
+
+    return (
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Contato</DialogTitle>
+            <DialogDescription>Adicione um novo contato à sua lista</DialogDescription>
+          </DialogHeader>
+          <Form {...contactForm}>
+            <form onSubmit={contactForm.handleSubmit(onContactSubmit)} className="space-y-4">
+              <FormField
+                control={contactForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do contato" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={contactForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="email@empresa.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={contactForm.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Departamento</FormLabel>
+                    <FormControl>
+                      <Input placeholder="TI, RH, etc." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit">Adicionar Contato</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Component for dialog or drawer based on screen size
+  const GroupDialog = () => {
+    if (isMobile) {
+      return (
+        <Drawer open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Criar Grupo</DrawerTitle>
+              <DrawerDescription>Crie um novo grupo de comunicação</DrawerDescription>
+            </DrawerHeader>
+            <Form {...groupForm}>
+              <form onSubmit={groupForm.handleSubmit(onGroupSubmit)} className="space-y-4 px-4">
+                <FormField
+                  control={groupForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Grupo</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nome do grupo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={groupForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Descrição do grupo (opcional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DrawerFooter>
+                  <Button type="submit">Criar Grupo</Button>
+                  <DrawerClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </form>
+            </Form>
+          </DrawerContent>
+        </Drawer>
+      );
+    }
+
+    return (
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Grupo</DialogTitle>
+            <DialogDescription>Crie um novo grupo de comunicação</DialogDescription>
+          </DialogHeader>
+          <Form {...groupForm}>
+            <form onSubmit={groupForm.handleSubmit(onGroupSubmit)} className="space-y-4">
+              <FormField
+                control={groupForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Grupo</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do grupo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={groupForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Descrição do grupo (opcional)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit">Criar Grupo</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -104,9 +387,19 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
         </div>
         
         <div className="p-3 border-t border-sidebar-border">
-          <h3 className="text-sm font-medium text-sidebar-foreground mb-2 flex items-center">
-            <Users className="h-4 w-4 mr-1" /> Grupos
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-medium text-sidebar-foreground flex items-center">
+              <Users className="h-4 w-4 mr-1" /> Grupos
+            </h3>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 rounded-full hover:bg-sidebar-accent"
+              onClick={() => setGroupDialogOpen(true)}
+            >
+              <CirclePlus className="h-4 w-4 text-sidebar-foreground" />
+            </Button>
+          </div>
           {groups.map(group => (
             <Button 
               key={group.id}
@@ -122,9 +415,20 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
         </div>
         
         <div className="p-3 border-t border-sidebar-border">
-          <h3 className="text-sm font-medium text-sidebar-foreground mb-2 flex items-center">
-            <User className="h-4 w-4 mr-1" /> Contatos
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-medium text-sidebar-foreground flex items-center">
+              <User className="h-4 w-4 mr-1" /> Contatos
+            </h3>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 rounded-full hover:bg-sidebar-accent"
+              onClick={() => setContactDialogOpen(true)}
+            >
+              <UserPlus className="h-4 w-4 text-sidebar-foreground" />
+            </Button>
+          </div>
+          
           {contacts.map(contact => (
             <div 
               key={contact.id}
@@ -146,6 +450,10 @@ const SidebarNav = ({ user }: { user: UserProps }) => {
           ))}
         </div>
       </div>
+
+      {/* Render dialogs */}
+      <ContactDialog />
+      <GroupDialog />
     </aside>
   );
 };
