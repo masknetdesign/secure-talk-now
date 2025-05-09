@@ -43,10 +43,22 @@ const Login = () => {
   useEffect(() => {
     if (authenticated) {
       console.log("Autenticado com sucesso, redirecionando...");
-      // Força a navegação para o dashboard com replace
-      window.location.href = "/#/dashboard";
+      
+      // Aguarda um curto período e então redireciona
+      // Isso garante que a UI tenha tempo de mostrar a mensagem de sucesso
+      const timer = setTimeout(() => {
+        // Forçar navegação direta para o dashboard
+        navigate("/dashboard", { replace: true });
+        
+        // Se a navegação falhar, use um método mais direto
+        if (window.location.hash !== "#/dashboard") {
+          window.location.href = "/#/dashboard";
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
     }
-  }, [authenticated]);
+  }, [authenticated, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,12 +125,22 @@ const Login = () => {
 
   // Se já estiver autenticado, não renderiza a página de login
   if (authenticated) {
-    return <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
-      <div className="text-white text-center">
-        <h2 className="text-xl mb-2">Login bem-sucedido!</h2>
-        <p>Redirecionando para o dashboard...</p>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
+        <div className="text-white text-center">
+          <h2 className="text-xl mb-2">Login bem-sucedido!</h2>
+          <p>Redirecionando para o dashboard...</p>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate("/dashboard", { replace: true })}
+            >
+              Ir para o Dashboard agora
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>;
+    );
   }
 
   return (
