@@ -22,3 +22,8 @@ export function useMediaQuery(query: string): boolean {
 
   return matches;
 }
+
+// Export the useIsMobile hook that is being imported in the sidebar component
+export function useIsMobile(): boolean {
+  return useMediaQuery("(max-width: 768px)");
+}
