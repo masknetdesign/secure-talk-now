@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
   
   // Register state
   const [registerEmail, setRegisterEmail] = useState("");
@@ -24,7 +25,28 @@ const Login = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   
   const navigate = useNavigate();
-  const { signIn, createUser } = useFirebase();
+  const { signIn, createUser, currentUser } = useFirebase();
+
+  // Efeito para verificar se o usuário já está autenticado
+  useEffect(() => {
+    // Verificar se há um usuário no localStorage
+    const userData = localStorage.getItem("comtalk-user");
+    
+    if (userData || currentUser) {
+      console.log("Usuário já autenticado, redirecionando...");
+      // Redirecionar imediatamente para o dashboard
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate, currentUser]);
+
+  // Efeito para redirecionar quando autenticado
+  useEffect(() => {
+    if (authenticated) {
+      console.log("Autenticado com sucesso, redirecionando...");
+      // Força a navegação para o dashboard com replace
+      window.location.href = "/#/dashboard";
+    }
+  }, [authenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +56,14 @@ const Login = () => {
     try {
       console.log("Iniciando login com:", email);
       await signIn(email, password);
-      console.log("Login bem-sucedido, redirecionando para dashboard");
-      navigate("/dashboard");
+      console.log("Login bem-sucedido");
+      
+      // Marcar como autenticado para acionar o redirecionamento
+      setAuthenticated(true);
     } catch (error: any) {
       console.error("Login error:", error);
       setLoginError(error.message || "Erro ao fazer login. Verifique suas credenciais.");
+      setAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -69,11 +94,12 @@ const Login = () => {
       // Fazer login automaticamente após o registro
       await signIn(registerEmail, registerPassword);
       
-      // Redirecionar para o dashboard
-      navigate("/dashboard");
+      // Marcar como autenticado para acionar o redirecionamento
+      setAuthenticated(true);
     } catch (error: any) {
       console.error("Register error:", error);
       setRegisterError(error.message || "Erro ao criar conta. Tente novamente.");
+      setAuthenticated(false);
     } finally {
       setIsRegistering(false);
     }
@@ -84,6 +110,16 @@ const Login = () => {
     setEmail("test@example.com");
     setPassword("password123");
   };
+
+  // Se já estiver autenticado, não renderiza a página de login
+  if (authenticated) {
+    return <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
+      <div className="text-white text-center">
+        <h2 className="text-xl mb-2">Login bem-sucedido!</h2>
+        <p>Redirecionando para o dashboard...</p>
+      </div>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700 p-4">
