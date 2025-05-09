@@ -10,28 +10,83 @@ import NotFound from "./pages/NotFound";
 import PushToTalk from "./components/PushToTalk";
 import AdminPage from "./pages/AdminPage";
 import { useEffect, useState } from "react";
-import { FirebaseProvider } from "./contexts/FirebaseContext";
+import { FirebaseProvider, useFirebase } from "./contexts/FirebaseContext";
 import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+// Componente de roteamento que depende da autenticação
+const AppRoutes = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { currentUser } = useFirebase();
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("comtalk-user");
-    setIsAuthenticated(!!userData);
+    // Verificar autenticação sempre que o currentUser mudar
+    const checkAuth = () => {
+      const userData = localStorage.getItem("comtalk-user");
+      console.log("Verificando autenticação:", !!userData, !!currentUser);
+      setIsAuthenticated(!!userData || !!currentUser);
+    };
     
-    // Log navigation for debugging
-    console.log("App inicializado, rota atual:", window.location.hash);
-  }, []);
+    checkAuth();
+    
+    // Adicionar um listener para mudanças de autenticação
+    window.addEventListener('storage', checkAuth);
+    
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+    };
+  }, [currentUser]);
 
-  // Show nothing while checking authentication
+  // Mostrar um loader enquanto verifica a autenticação
   if (isAuthenticated === null) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
+        <div className="text-white">Carregando...</div>
+      </div>
+    );
   }
 
+  return (
+    <Routes>
+      <Route 
+        path="/login" 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
+      />
+      <Route 
+        path="/dashboard" 
+        element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/messages" 
+        element={isAuthenticated ? <Messages /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/push-to-talk" 
+        element={isAuthenticated ? 
+          <MainLayout>
+            <PushToTalk />
+          </MainLayout> 
+          : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/admin" 
+        element={isAuthenticated ? 
+          <MainLayout>
+            <AdminPage />
+          </MainLayout> 
+          : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/" 
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <FirebaseProvider>
@@ -39,41 +94,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <HashRouter>
-            <Routes>
-              <Route 
-                path="/login" 
-                element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
-              />
-              <Route 
-                path="/dashboard" 
-                element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/messages" 
-                element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/push-to-talk" 
-                element={isAuthenticated ? 
-                  <MainLayout>
-                    <PushToTalk />
-                  </MainLayout> 
-                  : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/admin" 
-                element={isAuthenticated ? 
-                  <MainLayout>
-                    <AdminPage />
-                  </MainLayout> 
-                  : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/" 
-                element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppRoutes />
           </HashRouter>
         </TooltipProvider>
       </FirebaseProvider>
