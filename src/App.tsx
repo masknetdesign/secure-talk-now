@@ -21,6 +21,9 @@ const App = () => {
     // Check if user is logged in
     const userData = localStorage.getItem("comtalk-user");
     setIsAuthenticated(!!userData);
+    
+    // Log navigation for debugging
+    console.log("App inicializado, rota atual:", window.location.hash);
   }, []);
 
   // Show nothing while checking authentication

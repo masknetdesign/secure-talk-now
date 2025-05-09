@@ -23,8 +23,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Create 200.html for SPA routing
+        run: cp dist/index.html dist/200.html
+        
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: dist
-          branch: gh-pages 
+          branch: gh-pages
+          clean: true 
