@@ -14,7 +14,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [authenticated, setAuthenticated] = useState(false);
   
   // Register state
   const [registerEmail, setRegisterEmail] = useState("");
@@ -29,39 +28,18 @@ const Login = () => {
 
   // Verificar se o usuário já está autenticado ao carregar a página
   useEffect(() => {
-    const checkAuth = () => {
-      const userData = localStorage.getItem("comtalk-user");
-      if (userData || currentUser) {
-        console.log("Usuário já autenticado na página de login, redirecionando...");
-        navigate("/dashboard", { replace: true });
-      }
-    };
-    
-    // Verificar imediatamente
-    checkAuth();
-    
-    // E também verificar quando o currentUser mudar
-    const checkInterval = setInterval(checkAuth, 1000);
-    
-    return () => clearInterval(checkInterval);
-  }, [navigate, currentUser]);
-
-  // Efeito para redirecionar quando autenticado
-  useEffect(() => {
-    if (authenticated) {
-      console.log("Autenticado com sucesso, redirecionando...");
-      
-      // Redirecionar imediatamente
-      navigate("/dashboard", { replace: true });
-      
-      // Fornecer um fallback caso a navegação não funcione
-      setTimeout(() => {
-        if (window.location.hash !== "#/dashboard") {
-          window.location.href = "/#/dashboard";
-        }
-      }, 500);
+    const userData = localStorage.getItem("comtalk-user");
+    if (userData || currentUser) {
+      console.log("Usuário já autenticado, redirecionando...");
+      navigateToDashboard();
     }
-  }, [authenticated, navigate]);
+  }, [currentUser]);
+
+  // Função para navegação direta para o dashboard
+  const navigateToDashboard = () => {
+    // Forçar redirecionamento direto usando window.location
+    window.location.href = "/#/dashboard";
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,27 +47,14 @@ const Login = () => {
     setLoginError(null);
 
     try {
-      console.log("Iniciando login com:", email);
+      // Fazer login com Firebase
       await signIn(email, password);
-      console.log("Login bem-sucedido");
       
-      // Forçar redirecionamento após pequeno delay para o Firebase persistir
-      setTimeout(() => {
-        // Garantir que localStorage tenha o usuário
-        const userData = localStorage.getItem("comtalk-user");
-        if (userData) {
-          // Marcar como autenticado para acionar o redirecionamento
-          setAuthenticated(true);
-          
-          // Forçar navegação direta
-          navigate("/dashboard", { replace: true });
-        }
-      }, 500);
+      // Redirecionar imediatamente
+      navigateToDashboard();
     } catch (error: any) {
       console.error("Login error:", error);
       setLoginError(error.message || "Erro ao fazer login. Verifique suas credenciais.");
-      setAuthenticated(false);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -119,23 +84,11 @@ const Login = () => {
       // Fazer login automaticamente após o registro
       await signIn(registerEmail, registerPassword);
       
-      // Forçar redirecionamento após pequeno delay para o Firebase persistir
-      setTimeout(() => {
-        // Garantir que localStorage tenha o usuário
-        const userData = localStorage.getItem("comtalk-user");
-        if (userData) {
-          // Marcar como autenticado para acionar o redirecionamento
-          setAuthenticated(true);
-          
-          // Forçar navegação direta
-          navigate("/dashboard", { replace: true });
-        }
-      }, 500);
+      // Redirecionar imediatamente
+      navigateToDashboard();
     } catch (error: any) {
       console.error("Register error:", error);
       setRegisterError(error.message || "Erro ao criar conta. Tente novamente.");
-      setAuthenticated(false);
-    } finally {
       setIsRegistering(false);
     }
   };
@@ -146,54 +99,12 @@ const Login = () => {
     setPassword("password123");
   };
 
-  // Se já estiver autenticado, mostrar mensagem de redirecionamento
-  if (authenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
-        <div className="text-white text-center">
-          <h2 className="text-xl mb-2">Login bem-sucedido!</h2>
-          <p>Redirecionando para o dashboard...</p>
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                navigate("/dashboard", { replace: true });
-                setTimeout(() => {
-                  if (window.location.hash !== "#/dashboard") {
-                    window.location.href = "/#/dashboard";
-                  }
-                }, 100);
-              }}
-            >
-              Ir para o Dashboard agora
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Verificar se há dados de usuário no localStorage
   const userData = localStorage.getItem("comtalk-user");
   if (userData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-comtalk-900 to-comtalk-700">
-        <div className="text-white text-center">
-          <h2 className="text-xl mb-2">Você já está logado!</h2>
-          <p>Redirecionando para o dashboard...</p>
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                navigate("/dashboard", { replace: true });
-              }}
-            >
-              Ir para o Dashboard agora
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    // Redirecionar imediatamente sem mostrar mensagem
+    navigateToDashboard();
+    return null;
   }
 
   return (
