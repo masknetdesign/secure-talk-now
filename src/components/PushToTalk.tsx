@@ -2,27 +2,53 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Radio, User } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-// Mock audio messages (in a real app, these would come from an API)
-const initialAudioMessages = [
-  { id: 1, sender: "João Silva", timestamp: new Date(Date.now() - 1000 * 60 * 30), duration: "0:08" },
-  { id: 2, sender: "Maria Oliveira", timestamp: new Date(Date.now() - 1000 * 60 * 15), duration: "0:12" },
-  { id: 3, sender: "Carlos Santos", timestamp: new Date(Date.now() - 1000 * 60 * 5), duration: "0:05" },
-];
+import { useFirebase } from "@/contexts/FirebaseContext";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const PushToTalk = () => {
   const [isRecording, setIsRecording] = useState(false);
-  const [audioMessages, setAudioMessages] = useState(initialAudioMessages);
+  const [audioMessages, setAudioMessages] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState("all");
   const recordingTimeout = useRef<number | null>(null);
-  const { toast } = useToast();
-
-  // Track how long we've been recording
-  const [recordingTime, setRecordingTime] = useState(0);
   const recordingInterval = useRef<number | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const { currentUser, sendAudioMessage } = useFirebase();
+
+  // Listen for new audio messages in the selected group
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const chatId = selectedGroup === "all" ? "general" : selectedGroup;
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messagesQuery = query(
+      messagesRef, 
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      const newAudioMessages = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            sender: data.sender,
+            timestamp: data.timestamp?.toDate() || new Date(),
+            duration: data.duration || "0:00",
+            audioUrl: data.audioUrl,
+            type: data.type
+          };
+        })
+        .filter(msg => msg.type === 'audio');
+
+      setAudioMessages(newAudioMessages);
+    });
+
+    return () => unsubscribe();
+  }, [selectedGroup, currentUser]);
 
   // Format time as mm:ss
   const formatTime = (timeInSeconds: number) => {
@@ -42,11 +68,7 @@ const PushToTalk = () => {
   const startRecording = () => {
     // In a real app, we would use the Web Audio API here
     setIsRecording(true);
-    toast({
-      title: "Gravando áudio",
-      description: "Mantenha pressionado para continuar gravando"
-    });
-
+    
     // Start the recording timer
     setRecordingTime(0);
     recordingInterval.current = window.setInterval(() => {
@@ -56,14 +78,10 @@ const PushToTalk = () => {
     // Set a maximum recording time (30 seconds)
     recordingTimeout.current = window.setTimeout(() => {
       stopRecording();
-      toast({
-        title: "Tempo máximo de gravação atingido",
-        description: "O áudio foi enviado automaticamente",
-      });
     }, 30000) as unknown as number;
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     // Clear the recording interval
     if (recordingInterval.current) {
       clearInterval(recordingInterval.current);
@@ -81,31 +99,26 @@ const PushToTalk = () => {
 
     // Don't add a message if recording time is too short
     if (recordingTime < 1) {
-      toast({
-        title: "Gravação muito curta",
-        description: "Mantenha pressionado por mais tempo",
-        variant: "destructive"
-      });
       return;
     }
 
-    // Add the new message to the list
-    const newMessage = {
-      id: Date.now(),
-      sender: "Você",
-      timestamp: new Date(),
-      duration: formatTime(recordingTime)
-    };
-
-    setAudioMessages([newMessage, ...audioMessages]);
-    
-    toast({
-      title: "Áudio enviado",
-      description: `Duração: ${formatTime(recordingTime)}`
-    });
-
-    // Reset recording time
-    setRecordingTime(0);
+    try {
+      // This is where you would upload the audio file to Firebase Storage
+      // For now, we'll just simulate it
+      const audioUrl = `https://example.com/audio_${Date.now()}.mp3`;
+      const duration = formatTime(recordingTime);
+      
+      // Use the selected group as the chat ID, or "general" if "all" is selected
+      const chatId = selectedGroup === "all" ? "general" : selectedGroup;
+      
+      // Send the audio message to Firebase
+      await sendAudioMessage(chatId, audioUrl, duration);
+      
+      // Reset recording time
+      setRecordingTime(0);
+    } catch (error) {
+      console.error("Error sending audio message:", error);
+    }
   };
 
   return (
@@ -153,9 +166,12 @@ const PushToTalk = () => {
                 variant="ghost" 
                 className="h-8 w-8 p-0"
                 title="Reproduzir áudio"
+                onClick={() => {
+                  // In a real app, we would play the audio here
+                  console.log("Playing audio:", message.audioUrl);
+                }}
               >
                 <span className="sr-only">Reproduzir</span>
-                {/* Triangle play icon */}
                 <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-current border-b-[5px] border-b-transparent ml-0.5"></div>
               </Button>
             </div>

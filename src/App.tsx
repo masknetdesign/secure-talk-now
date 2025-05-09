@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
+import { FirebaseProvider } from "./contexts/FirebaseContext";
 
 const queryClient = new QueryClient();
 
@@ -27,27 +28,29 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route 
-              path="/login" 
-              element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
-            />
-            <Route 
-              path="/dashboard" 
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/" 
-              element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <FirebaseProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route 
+                path="/login" 
+                element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
+              />
+              <Route 
+                path="/dashboard" 
+                element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/" 
+                element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </FirebaseProvider>
     </QueryClientProvider>
   );
 };

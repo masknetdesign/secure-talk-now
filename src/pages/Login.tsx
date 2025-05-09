@@ -5,49 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useFirebase } from "@/contexts/FirebaseContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const { signIn } = useFirebase();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Here we would connect to the backend for authentication
-      // For now, we'll simulate a login with a valid corporate email
-      if (email.includes("@") && password.length >= 6) {
-        // Mock authentication simulation
-        setTimeout(() => {
-          // Store a mock token in localStorage
-          localStorage.setItem("comtalk-user", JSON.stringify({
-            name: email.split("@")[0],
-            email,
-            token: "mock-token-12345",
-            role: "user"
-          }));
-          
-          toast({
-            title: "Login bem-sucedido",
-            description: "Bem-vindo ao ComTalk!",
-          });
-          
-          navigate("/dashboard");
-        }, 1500);
-      } else {
-        throw new Error("Credenciais inválidas");
-      }
+      await signIn(email, password);
+      navigate("/dashboard");
     } catch (error) {
-      toast({
-        title: "Erro de autenticação",
-        description: "Verifique seu e-mail e senha.",
-        variant: "destructive",
-      });
+      console.error("Login error:", error);
+      // Error is already handled in the firebase context with toast
+    } finally {
       setIsLoading(false);
     }
   };

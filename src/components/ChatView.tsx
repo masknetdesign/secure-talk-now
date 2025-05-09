@@ -1,49 +1,55 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-// Mock chat data (in a real app, this would come from an API)
-const initialMessages = [
-  { id: 1, sender: "João Silva", content: "Bom dia pessoal! Temos reunião às 10h hoje.", timestamp: new Date(Date.now() - 1000 * 60 * 30), isMine: false },
-  { id: 2, sender: "Maria Oliveira", content: "Ok, estarei lá!", timestamp: new Date(Date.now() - 1000 * 60 * 28), isMine: false },
-  { id: 3, sender: "Você", content: "Confirmo presença também.", timestamp: new Date(Date.now() - 1000 * 60 * 25), isMine: true },
-  { id: 4, sender: "Carlos Santos", content: "Alguém pode me passar o link da reunião?", timestamp: new Date(Date.now() - 1000 * 60 * 15), isMine: false },
-  { id: 5, sender: "Você", content: "Estou enviando por e-mail agora.", timestamp: new Date(Date.now() - 1000 * 60 * 10), isMine: true },
-];
+import { useFirebase } from "@/contexts/FirebaseContext";
 
 const ChatView = () => {
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [chatType, setChatType] = useState("groups");
-  const { toast } = useToast();
+  const [activeChatId, setActiveChatId] = useState("general"); // Default chat
+  const { currentUser, getMessages, sendMessage } = useFirebase();
   
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Fetch messages when component loads or when active chat changes
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (activeChatId) {
+        const chatMessages = await getMessages(activeChatId);
+        setMessages(chatMessages);
+      }
+    };
+    
+    fetchMessages();
+  }, [activeChatId, getMessages]);
+  
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newMessage.trim()) return;
     
-    const message = {
-      id: Date.now(),
-      sender: "Você",
-      content: newMessage,
-      timestamp: new Date(),
-      isMine: true
-    };
-    
-    setMessages([...messages, message]);
-    setNewMessage("");
-    
-    // In a real app, we would send the message to the API here
-    // For now, we'll just show a toast to simulate
-    toast({
-      description: "Mensagem enviada",
-    });
+    try {
+      // Send the message to Firebase
+      await sendMessage(activeChatId, newMessage);
+      
+      // Optimistically add the message to the UI
+      const message = {
+        id: Date.now(),
+        sender: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Você',
+        content: newMessage,
+        timestamp: new Date(),
+        isMine: true
+      };
+      
+      setMessages([...messages, message]);
+      setNewMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
   return (
