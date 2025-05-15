@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Plus } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
@@ -53,11 +54,14 @@ export function AddContactDialog({ children }: AddContactDialogProps) {
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      await addContact(values.name, values.email);
+      const contactId = await addContact(values.name, values.email);
+      console.log("Contato adicionado com ID:", contactId);
+      toast.success(`Contato ${values.name} adicionado com sucesso!`);
       form.reset();
       setOpen(false);
     } catch (error) {
       console.error("Error adding contact:", error);
+      toast.error("Erro ao adicionar contato. Tente novamente.");
     } finally {
       setIsLoading(false);
     }

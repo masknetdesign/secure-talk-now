@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 
 // Define types for the contact data
 interface ContactData {
@@ -43,6 +43,8 @@ interface UserData {
 interface AppContextProps {
   currentUser: UserData | null;
   loading: boolean;
+  contacts: ContactData[]; // Adicionado para exportar os contatos diretamente
+  groups: GroupData[]; // Adicionado para exportar os grupos diretamente
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   createGroup: (groupName: string, members: string[]) => Promise<string>;
@@ -68,6 +70,60 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<ContactData[]>([]);
   const [groups, setGroups] = useState<GroupData[]>([]);
+
+  // Carregar dados do localStorage na inicialização
+  useEffect(() => {
+    // Verificar se existe um usuário no localStorage
+    const storedUserData = localStorage.getItem('comtalk-user');
+    if (storedUserData) {
+      try {
+        const userData = JSON.parse(storedUserData);
+        setCurrentUser({
+          uid: `user-${Date.now()}`, // Gerar ID temporário
+          email: userData.email,
+          displayName: userData.name,
+          photoURL: userData.photoURL || null,
+          role: userData.role || "user"
+        });
+      } catch (error) {
+        console.error("Erro ao carregar dados do usuário:", error);
+      }
+    }
+
+    // Carregar contatos do localStorage se existirem
+    const storedContacts = localStorage.getItem('comtalk-contacts');
+    if (storedContacts) {
+      try {
+        setContacts(JSON.parse(storedContacts));
+      } catch (error) {
+        console.error("Erro ao carregar contatos:", error);
+      }
+    }
+
+    // Carregar grupos do localStorage se existirem
+    const storedGroups = localStorage.getItem('comtalk-groups');
+    if (storedGroups) {
+      try {
+        setGroups(JSON.parse(storedGroups));
+      } catch (error) {
+        console.error("Erro ao carregar grupos:", error);
+      }
+    }
+  }, []);
+
+  // Salvar contatos no localStorage sempre que mudarem
+  useEffect(() => {
+    if (contacts.length > 0) {
+      localStorage.setItem('comtalk-contacts', JSON.stringify(contacts));
+    }
+  }, [contacts]);
+
+  // Salvar grupos no localStorage sempre que mudarem
+  useEffect(() => {
+    if (groups.length > 0) {
+      localStorage.setItem('comtalk-groups', JSON.stringify(groups));
+    }
+  }, [groups]);
   
   // Mock implementation of Firebase-related functions
   const signIn = async (email: string, password: string) => {
@@ -145,7 +201,11 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         userId: contactId
       };
       
-      setContacts(prev => [...prev, newContact]);
+      setContacts(prev => {
+        console.log("Adicionando contato:", newContact);
+        console.log("Contatos anteriores:", prev);
+        return [...prev, newContact];
+      });
       return contactId;
     } catch (error: any) {
       console.error("Error adding contact:", error);
@@ -233,6 +293,8 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const value = {
     currentUser,
     loading,
+    contacts, // Adicionado para exportar os contatos diretamente
+    groups,   // Adicionado para exportar os grupos diretamente
     signIn,
     signOut,
     createGroup,
