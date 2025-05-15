@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFirebase } from '@/contexts/FirebaseContext';
+import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,10 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { collection, getDocs, query, updateDoc, doc } from 'firebase/firestore';
 
 export default function AdminPage() {
-  const { currentUser, db } = useFirebase();
+  const { currentUser } = useApp();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminStatus, setAdminStatus] = useState<string | null>(null);
@@ -29,18 +29,32 @@ export default function AdminPage() {
           return;
         }
 
-        const userDoc = await doc(db, 'users', currentUser.uid);
-        const userSnapshot = await getDocs(query(collection(db, 'users')));
-        const currentUserData = userSnapshot.docs.find(doc => doc.id === currentUser.uid)?.data();
-
-        if (currentUserData?.role !== 'admin') {
+        // Check if currentUser has admin role
+        if (currentUser.role !== 'admin') {
           setAdminStatus('not-admin');
-          navigate('/chat');
+          navigate('/dashboard');
           return;
         }
 
         setAdminStatus('admin');
-        fetchUsers();
+        
+        // In a real app with Supabase, we would fetch users here
+        // For now we'll use mock data
+        setUsers([
+          {
+            id: 'user-1',
+            displayName: 'Admin User',
+            email: 'admin@example.com',
+            role: 'admin'
+          },
+          {
+            id: 'user-2',
+            displayName: 'Regular User',
+            email: 'user@example.com',
+            role: 'user'
+          }
+        ]);
+        
       } catch (error) {
         console.error('Error checking admin status:', error);
         setAdminStatus('error');
@@ -49,27 +63,11 @@ export default function AdminPage() {
     };
 
     checkAdminStatus();
-  }, [currentUser, db, navigate]);
-
-  const fetchUsers = async () => {
-    try {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setUsers(usersData);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+  }, [currentUser, navigate]);
 
   const toggleUserRole = async (userId: string, currentRole: string) => {
     try {
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
-      await updateDoc(doc(db, 'users', userId), {
-        role: newRole
-      });
       
       // Update local state
       setUsers(users.map(user => 
@@ -77,6 +75,8 @@ export default function AdminPage() {
           ? { ...user, role: newRole } 
           : user
       ));
+      
+      // In a real app with Supabase, we would update the user's role in the database here
     } catch (error) {
       console.error('Error updating user role:', error);
     }
@@ -133,4 +133,4 @@ export default function AdminPage() {
       </Card>
     </div>
   );
-} 
+}

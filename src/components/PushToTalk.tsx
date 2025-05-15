@@ -3,10 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Radio, User, Play, Headphones } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useFirebase } from "@/contexts/FirebaseContext";
-import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { useApp } from "@/contexts/AppContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +37,7 @@ const PushToTalk = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { currentUser, sendAudioMessage, listenToGroups } = useFirebase();
+  const { currentUser, sendAudioMessage, listenToGroups } = useApp();
   const { toast } = useToast();
   
   // Initialize audio element
@@ -95,35 +92,14 @@ const PushToTalk = () => {
     setIsLoading(true);
     
     const chatId = selectedGroup;
-    const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const messagesQuery = query(
-      messagesRef, 
-      where("type", "==", "audio"),
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const newAudioMessages = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            sender: data.sender,
-            senderId: data.senderId,
-            timestamp: data.timestamp?.toDate() || new Date(),
-            duration: data.duration || "0:00",
-            audioUrl: data.audioUrl,
-            type: data.type,
-            chatId: selectedGroup
-          };
-        });
-
-      setAudioMessages(newAudioMessages);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    
+    // Since we don't have Firebase anymore, we'll use a simplified approach
+    // In a real implementation with Supabase, this would fetch messages from Supabase
+    setAudioMessages([]);
+    setIsLoading(false);
+    
+    // Return a dummy unsubscribe function
+    return () => {};
   }, [selectedGroup, currentUser]);
 
   // Format time as mm:ss
@@ -280,20 +256,13 @@ const PushToTalk = () => {
         return;
       }
       
-      // Upload audio to Firebase Storage
-      const audioFileName = `audios/${selectedGroup}/${currentUser?.uid}_${Date.now()}.webm`;
-      const audioFileRef = ref(storage, audioFileName);
-      
-      // Upload the blob
-      await uploadBytes(audioFileRef, audioBlob);
-      
-      // Get download URL
-      const audioUrl = await getDownloadURL(audioFileRef);
+      // Create a URL for the audio blob
+      const audioUrl = URL.createObjectURL(audioBlob);
       
       // Use the selected group as the chat ID
       const chatId = selectedGroup;
       
-      // Send the audio message to Firebase
+      // Send the audio message
       await sendAudioMessage(chatId, audioUrl, duration);
       
       // Reset recording time

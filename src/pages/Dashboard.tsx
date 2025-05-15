@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 import { Link } from "react-router-dom";
 import {
   BarChart,
@@ -29,8 +29,6 @@ import {
   Bell,
   UserPlus
 } from "lucide-react";
-import { collection, query, orderBy, limit, getDocs, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { AddContactDialog } from "@/components/AddContactDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { toast } from "@/components/ui/use-toast";
@@ -73,7 +71,7 @@ const Dashboard = () => {
   const [messageStats, setMessageStats] = useState<MessageStats>(initialMessageStats);
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
   
-  const { currentUser } = useFirebase();
+  const { currentUser } = useApp();
   
   // Sample activity data for demonstration when real data isn't available yet
   const generateSampleActivityData = () => {
@@ -121,63 +119,29 @@ const Dashboard = () => {
     if (!currentUser) return;
     
     try {
-      // Get recent text messages
-      const messagesQuery = query(
-        collection(db, 'messages'),
-        where("participants", "array-contains", currentUser.uid),
-        orderBy('timestamp', 'desc'),
-        limit(10)
-      );
+      // In a real app with Supabase, we would fetch real activity from the database
+      // For now, let's create some mock data
+      const mockActivity: RecentActivity[] = [
+        {
+          id: '1',
+          type: 'message',
+          title: 'John Doe',
+          content: 'Olá, como vai?',
+          timestamp: new Date(),
+          sender: 'John Doe'
+        },
+        {
+          id: '2',
+          type: 'voice',
+          title: 'Maria Silva',
+          content: 'Mensagem de áudio (0:23)',
+          timestamp: new Date(Date.now() - 15 * 60 * 1000),
+          sender: 'Maria Silva',
+          groupName: 'Equipe de Marketing'
+        }
+      ];
       
-      // Get recent voice messages
-      const voiceQuery = query(
-        collection(db, 'messages'),
-        where("participants", "array-contains", currentUser.uid),
-        where("type", "==", "audio"),
-        orderBy('timestamp', 'desc'),
-        limit(5)
-      );
-      
-      // Execute queries
-      const [messagesSnapshot, voiceSnapshot] = await Promise.all([
-        getDocs(messagesQuery),
-        getDocs(voiceQuery)
-      ]);
-      
-      // Format messages
-      const textMessages = messagesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          type: 'message' as const,
-          title: data.sender,
-          content: data.content.substring(0, 30) + (data.content.length > 30 ? '...' : ''),
-          timestamp: data.timestamp?.toDate() || new Date(),
-          sender: data.sender,
-          groupName: data.groupName
-        };
-      });
-      
-      // Format voice messages
-      const voiceMessages = voiceSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          type: 'voice' as const,
-          title: data.sender,
-          content: `Mensagem de áudio (${data.duration || '0:00'})`,
-          timestamp: data.timestamp?.toDate() || new Date(),
-          sender: data.sender,
-          groupName: data.groupName
-        };
-      });
-      
-      // Combine all activities and sort by timestamp
-      const allActivity = [...textMessages, ...voiceMessages]
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 10);
-      
-      setRecentActivity(allActivity);
+      setRecentActivity(mockActivity);
     } catch (error) {
       console.error("Error fetching activity:", error);
     }
@@ -188,81 +152,24 @@ const Dashboard = () => {
     if (!currentUser) return;
     
     try {
-      // Get sent messages count - Esta query é simples e não deve precisar de índice composto
-      const sentQuery = query(
-        collection(db, 'messages'),
-        where("senderId", "==", currentUser.uid)
-      );
-      
-      // Get groups count - Esta query também é simples e não deve precisar de índice composto
-      const groupsQuery = query(
-        collection(db, 'groups'),
-        where("members", "array-contains", currentUser.uid)
-      );
-      
-      // Execute as consultas que não exigem índices compostos
-      const [sentSnap, groupsSnap] = await Promise.all([
-        getDocs(sentQuery),
-        getDocs(groupsQuery)
-      ]);
-      
-      // Variáveis para contagem de mensagens recebidas e de áudio
-      let receivedCount = 0;
-      let voiceCount = 0;
-      
-      try {
-        // Tentativa de obter mensagens recebidas - Isso pode exigir um índice composto
-        const receivedQuery = query(
-          collection(db, 'messages'),
-          where("participants", "array-contains", currentUser.uid),
-          where("senderId", "!=", currentUser.uid)
-        );
-        const receivedSnap = await getDocs(receivedQuery);
-        receivedCount = receivedSnap.size;
-      } catch (receivedError: any) {
-        // Se falhar devido à falta de índice, registra erro mas continua
-        console.warn("Erro ao buscar mensagens recebidas:", receivedError);
-        console.warn("Você precisa criar um índice para esta consulta. Visite o link fornecido no erro.");
-      }
-      
-      try {
-        // Tentativa de obter mensagens de áudio - Isso pode exigir um índice composto
-        const voiceQuery = query(
-          collection(db, 'messages'),
-          where("participants", "array-contains", currentUser.uid),
-          where("type", "==", "audio")
-        );
-        const voiceSnap = await getDocs(voiceQuery);
-        voiceCount = voiceSnap.size;
-      } catch (voiceError: any) {
-        // Se falhar devido à falta de índice, registra erro mas continua
-        console.warn("Erro ao buscar mensagens de áudio:", voiceError);
-        console.warn("Você precisa criar um índice para esta consulta. Visite o link fornecido no erro.");
-      }
-      
-      // Update message stats - Usamos 0 para os valores que não conseguimos obter
+      // In a real app with Supabase, we would fetch real statistics from the database
+      // For now, let's use mock data
       setMessageStats({
-        sent: sentSnap.size,
-        received: receivedCount,
-        groups: groupsSnap.size,
-        voice: voiceCount
+        sent: 32,
+        received: 48,
+        groups: 5,
+        voice: 12
       });
+      
     } catch (error) {
       console.error("Error fetching message stats:", error);
       
-      // Ainda assim, atualiza as estatísticas com valores padrão para evitar UI quebrada
+      // If there's an error, still update with default values to avoid UI breaking
       setMessageStats({
         sent: 0,
         received: 0,
         groups: 0,
         voice: 0
-      });
-      
-      // Mostra uma mensagem ao usuário sobre como resolver
-      toast({
-        title: "Erro ao carregar estatísticas",
-        description: "É necessário criar índices no Firebase. Um administrador precisará acessar o console do Firebase para resolver este problema.",
-        variant: "destructive"
       });
     }
   };

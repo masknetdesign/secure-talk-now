@@ -5,10 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, MoreVertical, User, Radio, Mic } from "lucide-react";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 type Chat = {
   id: string;
@@ -59,7 +57,7 @@ const ChatView = () => {
     listenToGroups, 
     listenToContacts,
     createChat
-  } = useFirebase();
+  } = useApp();
   
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -232,24 +230,18 @@ const ChatView = () => {
     }
   };
   
-  // Upload audio to Firebase Storage and send message
+  // Upload audio to storage and send message
   const uploadAndSendAudio = async (audioBlob: Blob) => {
     if (!activeChatId || !currentUser) return;
     
     try {
       const durationStr = formatTime(recordingTime);
       
-      // Create a reference to Firebase Storage
-      const storageRef = ref(storage, `audio/${currentUser.uid}/${activeChatId}/${Date.now()}.webm`);
+      // Create a URL to represent the audio blob
+      const audioUrl = URL.createObjectURL(audioBlob);
       
-      // Upload the audio blob
-      const uploadTask = await uploadBytes(storageRef, audioBlob);
-      
-      // Get the download URL
-      const downloadURL = await getDownloadURL(uploadTask.ref);
-      
-      // Send audio message
-      await sendAudioMessage(activeChatId, downloadURL, durationStr);
+      // Send audio message with local URL
+      await sendAudioMessage(activeChatId, audioUrl, durationStr);
       
       // Reset recording time
       setRecordingTime(0);
