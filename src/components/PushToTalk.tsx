@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Radio, User, Play, Headphones } from "lucide-react";
@@ -18,10 +19,13 @@ type AudioMessage = {
   chatId: string;
 };
 
+// Updated Group type to match GroupData from AppContext
 type Group = {
   id: string;
   name: string;
-  members: { id: string; displayName: string; role: string }[];
+  createdBy: string;
+  members: string[];
+  type: string;
 };
 
 const PushToTalk = () => {
