@@ -1,3 +1,4 @@
+
 import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,7 +40,7 @@ interface AddContactDialogProps {
 export function AddContactDialog({ children }: AddContactDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { addContact } = useFirebase();
+  const { addContact } = useApp();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -117,4 +118,4 @@ export function AddContactDialog({ children }: AddContactDialogProps) {
       </DialogContent>
     </Dialog>
   );
-} 
+}

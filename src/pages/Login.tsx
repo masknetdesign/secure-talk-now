@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -24,7 +24,7 @@ const Login = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   
   const navigate = useNavigate();
-  const { signIn, createUser, currentUser } = useFirebase();
+  const { signIn, createUser, currentUser } = useApp();
 
   // Verificar se o usuário já está autenticado ao carregar a página
   useEffect(() => {
@@ -47,7 +47,7 @@ const Login = () => {
     setLoginError(null);
 
     try {
-      // Fazer login com Firebase
+      // Fazer login com App context
       await signIn(email, password);
       
       // Redirecionar imediatamente

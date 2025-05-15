@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
@@ -11,7 +12,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut } = useFirebase();
+  const { signOut } = useApp();
   
   useEffect(() => {
     try {
@@ -44,7 +45,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
       
-      // Usar a função de logout do FirebaseContext
+      // Usar a função de logout do AppContext
       await signOut();
       
       // Garantir que o localStorage esteja limpo

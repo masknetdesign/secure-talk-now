@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,7 +11,7 @@ import NotFound from "./pages/NotFound";
 import PushToTalk from "./components/PushToTalk";
 import AdminPage from "./pages/AdminPage";
 import { useEffect, useState } from "react";
-import { FirebaseProvider, useFirebase } from "./contexts/FirebaseContext";
+import { AppProvider, useApp } from "./contexts/AppContext";
 import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
@@ -18,7 +19,7 @@ const queryClient = new QueryClient();
 // Componente de roteamento que depende da autenticação
 const AppRoutes = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const { currentUser } = useFirebase();
+  const { currentUser } = useApp();
 
   useEffect(() => {
     // Verificar autenticação sempre que o currentUser mudar
@@ -89,7 +90,7 @@ const AppRoutes = () => {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <FirebaseProvider>
+      <AppProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -97,7 +98,7 @@ const App = () => {
             <AppRoutes />
           </HashRouter>
         </TooltipProvider>
-      </FirebaseProvider>
+      </AppProvider>
     </QueryClientProvider>
   );
 };

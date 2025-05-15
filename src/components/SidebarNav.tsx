@@ -2,13 +2,11 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { 
   Home, 
   MessageSquare, 
   Users, 
   Radio, 
-  Bell, 
   CalendarDays, 
   Settings,
   Search,
@@ -18,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { AddContactDialog } from "./AddContactDialog";
 import { CreateGroupDialog } from "./CreateGroupDialog";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 
 interface User {
   name: string;
@@ -34,7 +32,7 @@ interface SidebarNavProps {
 
 const SidebarNav = ({ user }: SidebarNavProps) => {
   const location = useLocation();
-  const { listenToContacts, listenToGroups } = useFirebase();
+  const { listenToContacts, listenToGroups } = useApp();
   const [contacts, setContacts] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -215,7 +213,92 @@ const SidebarNav = ({ user }: SidebarNavProps) => {
       
       {/* Chat/Contact/Group List */}
       <ScrollArea className="flex-1 py-2">
-        {renderContent()}
+        {/* Use the existing renderContent function */}
+        {(() => {
+          switch(activeSection) {
+            case 'contacts':
+              return (
+                <div className="space-y-1 px-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium text-sm">Contatos</h3>
+                    <AddContactDialog />
+                  </div>
+                  {contacts.length === 0 || (searchTerm && filteredContacts.length === 0) ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      {searchTerm ? "Nenhum contato encontrado" : "Nenhum contato adicionado"}
+                    </div>
+                  ) : (
+                    (searchTerm ? filteredContacts : contacts).map((contact) => (
+                      <Button
+                        key={contact.id}
+                        variant="ghost"
+                        className="w-full justify-start font-normal"
+                        asChild
+                      >
+                        <Link to={`/chat/${contact.userId || contact.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              {contact.photoURL ? (
+                                <AvatarImage src={contact.photoURL} alt={contact.name} />
+                              ) : (
+                                <AvatarFallback>
+                                  <User className="h-4 w-4" />
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <span className="truncate">{contact.name}</span>
+                          </div>
+                        </Link>
+                      </Button>
+                    ))
+                  )}
+                </div>
+              );
+            case 'groups':
+              return (
+                <div className="space-y-1 px-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium text-sm">Grupos</h3>
+                    <CreateGroupDialog />
+                  </div>
+                  {groups.length === 0 || (searchTerm && filteredGroups.length === 0) ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      {searchTerm ? "Nenhum grupo encontrado" : "Nenhum grupo criado"}
+                    </div>
+                  ) : (
+                    (searchTerm ? filteredGroups : groups).map((group) => (
+                      <Button
+                        key={group.id}
+                        variant="ghost"
+                        className="w-full justify-start font-normal"
+                        asChild
+                      >
+                        <Link to={`/group/${group.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback>
+                                <Radio className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{group.name}</span>
+                          </div>
+                        </Link>
+                      </Button>
+                    ))
+                  )}
+                </div>
+              );
+            default: // 'chats'
+              return (
+                <div className="space-y-1 px-2">
+                  <h3 className="font-medium text-sm mb-2">Conversas Recentes</h3>
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    {searchTerm ? "Nenhuma conversa encontrada" : "Nenhuma conversa recente"}
+                  </div>
+                </div>
+              );
+          }
+        })()}
       </ScrollArea>
       
       {/* Navigation */}

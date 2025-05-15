@@ -1,3 +1,4 @@
+
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useFirebase } from "@/contexts/FirebaseContext";
+import { useApp } from "@/contexts/AppContext";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,7 +50,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const { createGroup, getContacts, listenToContacts } = useFirebase();
+  const { createGroup, getContacts, listenToContacts } = useApp();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -197,4 +198,4 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
       </DialogContent>
     </Dialog>
   );
-} 
+}
